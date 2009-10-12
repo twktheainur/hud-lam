@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="windows-1252"?>
+
+<!--
+    Document   : symbols.xml.xml
+    Created on : 8 octobre 2009, 12:22
+    Author     : twk
+    Description:
+        Purpose of the document follows.
+-->
+
+<symbols>
+    <symbol value="" name="EOF"/>
+    <symbol value=""/>
+</symbols>
