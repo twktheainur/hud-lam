@@ -5,12 +5,8 @@
 
 from Lexer import *
 from lexemes import *
-
+from Parser import *
 if __name__ == "__main__":
-    lexer = Lexer("testlex.lam")
-    str = lexer.next()
-
-    while str !=None and str.string!='':
-        print str
-        str = lexer.next()
+    parser = Parser("testlex.lam")
+    parser.parse()
         

@@ -21,5 +21,5 @@ class Lexeme(object):
         return ret
 
     def __eq__(self,other):
-        return type(self)==type(other)
+        return self.__class__==other
 

@@ -9,9 +9,9 @@ class Lexer:
     def __init__(self,filename):
         self.line=0
         self.column=0
-        self.currentLexeme = None
         self.reader = CharacterReader(filename)
         self.__factory = LexemeFactory()
+        self.currentLexeme = self.next()
 
     def next(self):
         u"""
@@ -23,7 +23,8 @@ class Lexer:
         self.__skip_whitespace()
         self.__skip_comments()
         lex_str = self.__read_lexeme()
-        return self.__factory.create_lexeme(lex_str)
+        self.currentLexeme = self.__factory.create_lexeme(lex_str)
+        return self.currentLexeme
 
     def __read_lexeme(self):
         u"""Reads the next lexeme string from the file"""
