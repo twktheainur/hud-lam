@@ -1,6 +1,6 @@
-from Symbol import Symbol
+from Lexeme import Lexeme
 from matcher.CompareMatcher import CompareMatcher
-class And(Symbol):
-    def __init__(self,strSymbol):
-        super(And,self).__init__(strSymbol)
+class And(Lexeme):
+    def __init__(self,strLexeme):
+        super(And,self).__init__(strLexeme)
     matcher = CompareMatcher("a")

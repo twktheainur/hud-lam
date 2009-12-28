@@ -1,6 +1,6 @@
-from Symbol import Symbol
-from matcher.ComareMatcher import CompareMatcher
-class Import(Symbol):
-    def __init__(self,strSymbol):
-        super(Import,self).__init__(strSymbol)
+from Lexeme import Lexeme
+from matcher.CompareMatcher import CompareMatcher
+class Import(Lexeme):
+    def __init__(self,strLexeme):
+        super(Import,self).__init__(strLexeme)
     matcher = CompareMatcher("baur")

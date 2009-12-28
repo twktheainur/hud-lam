@@ -1,6 +1,6 @@
-from Symbol import Symbol
-from matcher.ComareMatcher import CompareMatcher
-class If(Symbol):
-    def __init__(self,strSymbol):
-        super(If,self).__init__(strSymbol)
+from Lexeme import Lexeme
+from matcher.CompareMatcher import CompareMatcher
+class If(Lexeme):
+    def __init__(self,strLexeme):
+        super(If,self).__init__(strLexeme)
     matcher = CompareMatcher("gowest")

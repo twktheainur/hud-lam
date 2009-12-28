@@ -1,8 +1,7 @@
 
-matchOrderSymbols = ["Separator","EOF","FloatLitteral","IntegerLitteral","StringLitteral",\
-                     "KeyWord","Operator"]
-keywordsList = ["a","adar","agor","al","an","baur","can","cofn","egor",\
-                "gond","gowest","meth","minei","minna","neitha","sen","tass",\
-                "thand",";",":",\
-                "(",")","[","]",'\n']
-operators = [",",">","<","<=","==",'+',"-","*","/","%","=","."]
+matchLexemes = ["FloatLitteral","IntegerLitteral","StringLitteral","Import",
+                "Class","Parent","For","Do","In","If","Else","This","NoneL","And","Or","Not",
+                "True","False","Function","Call","Enter","BlockEnd","Separator","Affectation",
+                "InstructionSeparator","BlockStart","GroupStart","GroupEnd","SeqStart",
+                "SeqEnd","Access","Operator","LineEnd","EOF","Name"]
+

@@ -11,6 +11,7 @@ class Lexer:
         self.column=0
         self.currentLexeme = None
         self.reader = CharacterReader(filename)
+        self.__factory = LexemeFactory()
 
     def next(self):
         u"""
@@ -22,7 +23,7 @@ class Lexer:
         self.__skip_whitespace()
         self.__skip_comments()
         lex_str = self.__read_lexeme()
-        return LexemeFactory.create_lexeme(lex_str)
+        return self.__factory.create_lexeme(lex_str)
 
     def __read_lexeme(self):
         u"""Reads the next lexeme string from the file"""
@@ -115,17 +116,6 @@ class Lexer:
             if(self.reader.currentCharacter!='~'):
                 while self.reader.currentCharacter!='\n':
                     self.reader.next()
-#            else:
-#                self.reader.next()
-#                while (self.reader.currentCharacter!=''):
-#                    if(self.reader.currentCharacter!='~'):
-#                        self.reader.next()
-#                        if(self.reader.currentCharacter!='~'):
-#                            self.reader.next()
-#                            return
-#                    self.reader.next()
-#                if(self.reader.currentCharacter!=''):
-#                    self.__raise_syntax_error('~~', 'EOF')
                 
     def __raise_lexical_error(self,exp,found):
         raise Exception("Lexical error at "+str(self.reader.line)+":"+str(self.reader.line)+" found: "+found+" expected: "+exp)

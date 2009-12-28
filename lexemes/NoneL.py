@@ -1,6 +1,6 @@
 from Lexeme import Lexeme
 from matcher.CompareMatcher import CompareMatcher
-class Do(Lexeme):
+class NoneL(Lexeme):
     def __init__(self,strLexeme):
-        super(Do,self).__init__(strLexeme)
-    matcher = CompareMatcher("agor")
+        super(NoneL,self).__init__(strLexeme)
+    matcher = CompareMatcher("cofn")

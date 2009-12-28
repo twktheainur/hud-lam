@@ -1,7 +1,7 @@
-from Symbol import Symbol
+from Lexeme import Lexeme
 from matcher.CompareMatcher import CompareMatcher
 
-class EOF(Symbol):
+class EOF(Lexeme):
     def __init__(self,symbolStr):
         super(EOF,self).__init__(symbolStr)
         

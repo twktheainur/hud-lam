@@ -8,7 +8,6 @@ class SourceFile(object):
 
     def open(self,mode):
         self.file = open(self.filename,mode)
-        print "FILE!!!"
         if not self.file:
             raise Exception("No Such File:"+self.filename)
 

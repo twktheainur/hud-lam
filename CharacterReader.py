@@ -6,10 +6,8 @@ class CharacterReader:
         self.column=0;
         self.currentCharacter='';
         self.sourceFile = None
-        print "Yay"
         try:
             self.sourceFile = SourceFile(file)
-            print "Middle"
             self.sourceFile.open("r")
         except:
             print "Cannot open source file: "+file
@@ -23,7 +21,5 @@ class CharacterReader:
                 self.line+=1;
             self.currentCharacter = self.sourceFile.read(1);
             self.column+=1;
-    def peek(self):
-        return self.sourceFile.peek(1)
 
 

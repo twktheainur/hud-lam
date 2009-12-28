@@ -4,13 +4,13 @@
 # and open the template in the editor.
 
 from Lexer import *
-
+from lexemes import *
 
 if __name__ == "__main__":
     lexer = Lexer("testlex.lam")
     str = lexer.next()
 
-    while str.string!=u"":
-        print str.string
+    while str !=None and str.string!='':
+        print str
         str = lexer.next()
         

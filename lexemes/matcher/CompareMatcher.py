@@ -5,4 +5,4 @@ class CompareMatcher(LexemeMatcher):
         super(CompareMatcher,self).__init__(matcher);
 
     def match(self,str):
-            return matcher==str
+            return self.matcher==str
