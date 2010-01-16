@@ -19,5 +19,9 @@ class SourceFile(object):
         character = self.file.read(1);
         self.file.seek(currentPosition,0)
         return character
+
     def read(self,n):
         return self.file.read(n)
+
+    def seek(self,index):
+        return self.file.seek(index)
