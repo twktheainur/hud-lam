@@ -1,7 +1,7 @@
 
 matchLexemes = ["FloatLiteral","IntegerLiteral","StringLiteral","Import",
-                "Class","Parent","For","Do","In","If","Else","This","NoneL","And","Or","Not",
-                "True","False","Function","Call","Enter","BlockEnd","Separator","Affectation",
-                "InstructionSeparator","BlockStart","GroupStart","GroupEnd","SeqStart",
-                "SeqEnd","Access","Operator","LineEnd","EOF","Name"]
+                "Access","Parent","This","NoneL","BlockStart","BlockEnd","GroupStart","GroupEnd","SeqStart",
+                "SeqEnd","And","Or","Not","Affectation","Separator","Operator",
+                "True","False","For","Do","In","If","Else","Function","Call","Bound","Class","Enter",
+                "InstructionSeparator","Try","Catch","LineEnd","EOF","Name"]
 

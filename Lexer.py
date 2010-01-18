@@ -18,8 +18,6 @@ class Lexer:
             Creates the Lexeme class instance
             matching the next lexeme string.
         """
-        self.state.line=self.reader.state.line
-        self.state.column=self.reader.state.column
         self.__skip_whitespace()
         while(self.__skip_comments()):
             self.__skip_whitespace()
@@ -69,13 +67,13 @@ class Lexer:
                 s+='='
                 self.reader.next()
         elif self.reader.state.current_character=='<':
-            s+="=";
+            s+="<";
             self.reader.next()
             if self.reader.state.current_character=='=':
                 s+='='
                 self.reader.next()
         elif self.reader.state.current_character=='>':
-            s+="=";
+            s+=">";
             self.reader.next()
             if self.reader.state.current_character=='=':
                 s+='='

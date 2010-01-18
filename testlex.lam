@@ -1,14 +1,43 @@
 baur toto
 baur crap
 
-gond Arwen adar Elrond,Elf:
-    Thavron = tass():
-      ~toto_1 = sen.eneth;
-      ~eneth = "Arwen";
-      sen.taew = ["Arwen",sen.eneth, 2+2]
+gond Aragorn adar Arathorn:
+    Thavron = tass(haha):
+        sen.str = haha
     meth
 meth
 
+gond Arwen adar Elrond:
+    Thavron = tass(lol):
+      sen.eneth = "Arwen";
+      toto_1 = sen.eneth;
+      sen.taew = ["Arwen",sen.eneth, 2+2]
+      sen.name = sen.taew[0][1]
+    meth
+
+    die = gleina tass(toto,Fraker,crap):
+      agor:
+        sen.eneth
+        band:
+            sen.die.can(1,3,"Lol!")
+        raeda:
+            io.print "Error!"
+        meth:
+      meth an gowest 2<i
+    meth
+
+    lol = sen.eneth
+    
+meth
+
+gond AragornJr adar Arwen,Aragorn:
+    Thavron = tass(lol,haha):
+        adar.Arwen(lol)
+        adar.Aragorn(haha)
+    meth
+meth
+
+
 minna:
-    Arwen =  Arwen.can()
+    Arajr =  AragornJr.can("I laugh","at thee")
 meth
