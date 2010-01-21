@@ -4,7 +4,7 @@ class CharacterState(object):
         self.reader=reader
         if len(args)==0:
             self.file_index = 0
-            self.line=0
+            self.line=1
             self.column=0
             self.current_character='';
         elif len(args)==1:
