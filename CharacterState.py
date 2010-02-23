@@ -5,7 +5,7 @@ class CharacterState(object):
         if len(args)==0:
             self.file_index = 0
             self.line=1
-            self.column=0
+            self.column=1
             self.current_character='';
         elif len(args)==1:
             char_state = args[0]
@@ -16,7 +16,14 @@ class CharacterState(object):
 
     def next(self,c):
         self.current_character=c
-        if c=='\n':
+        if c=='\n' or c=='\r':
+            #Handling Windows line ends
+            index = self.reader.source_file.tell()
+            nc = self.reader.source_file.read(1)
+            if  nc!='\n' or nc !='\r':
+                self.reader.source_file.seek(index)
+            else:
+                self.file_index+=1
             self.column=0
             self.line+=1
         self.column +=1

@@ -1,6 +1,7 @@
 from Lexeme import Lexeme
 from matcher.CompareMatcher import CompareMatcher
 class Try(Lexeme):
-    def __init__(self,strLexeme):
-        super(Try,self).__init__(strLexeme)
+    string="band"
+    def __init__(self,str):
+        super(Try,self).__init__(str)
     matcher = CompareMatcher("band")

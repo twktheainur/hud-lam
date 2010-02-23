@@ -1,6 +1,7 @@
 from Lexeme import Lexeme
 from matcher.CompareMatcher import CompareMatcher
 class This(Lexeme):
-    def __init__(self,strLexeme):
-        super(This,self).__init__(strLexeme)
+    string = "sen"
+    def __init__(self,str):
+        super(This,self).__init__(str)
     matcher = CompareMatcher("sen")

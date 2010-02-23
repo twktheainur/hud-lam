@@ -25,3 +25,6 @@ class SourceFile(object):
 
     def seek(self,index):
         return self.file.seek(index)
+
+    def tell(self):
+        return self.file.tell()

@@ -1,9 +1,10 @@
-baur toto
-baur crap
+baur sys
+baur sys
 
 gond Aragorn adar Arathorn:
     Thavron = tass(haha):
         sen.str = haha
+        toto = lol
     meth
 meth
 
@@ -24,7 +25,6 @@ gond Arwen adar Elrond:
         meth
       meth an gowest 2<i
     meth
-
     lol = sen.eneth
     
 meth
@@ -38,14 +38,15 @@ meth
 
 
 minna:
-    Arajr =  AragornJr.can("I laugh","at thee")
+~    Arajr =  aragornJr.can("I laugh","at thee")
     i=3
     j=4
-    k=io.input.can()
+ ~   k=input.can()
+     k=2
     gowest i==3 a j==4 a k>i+j egor k>2*i%3 a Arajr.die.can(2,3,4):
         k=5
     minei gowest k==4 a i>3:
-        k=3
+         k=3
     minei:
         k=6
     meth

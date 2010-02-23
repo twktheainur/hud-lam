@@ -4,8 +4,9 @@
 
 class Lexeme(object):
     
-    def __init__(self, strLexeme):
+    def __init__(self,strLexeme):
         self.string = strLexeme
+        
     # This needs to be redefined in sub classes
     matcher = None
 

@@ -8,10 +8,10 @@ class CharacterReader(object):
         self.state = CharacterState(self)
         try:
             self.source_file = SourceFile(file)
-            self.source_file.open("r")
-        except:
+            self.source_file.open("rb")
+        except Exception as ex:
             print "Cannot open source file: "+file
-            return
+            raise ex
         self.next()
 
     def next(self):

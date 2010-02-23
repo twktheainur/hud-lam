@@ -2,6 +2,7 @@ from lexemes import *
 from lexemes.LexemeFactory import *
 from CharacterReader import *
 from LexerState import LexerState
+from lam_exceptions.LexicalError import *
 
 class Lexer:
     u"""
@@ -42,7 +43,7 @@ class Lexer:
                 s = s + self.reader.state.current_character
                 self.reader.next()
 #            if not self.__is_whitespace(self.reader.state.current_character):
-#                self.__raise_lexical_error('Whitespace',self.reader.state.current_character)
+#                self.__raise__error('Whitespace',self.reader.state.current_character)
         #Word
         elif self.reader.state.current_character.isalpha():
             s = s + self.reader.state.current_character
@@ -59,7 +60,7 @@ class Lexer:
                 s+='='
                 self.reader.next()
             else:
-                self.__raise_lexical_error('=',self.reader.state.current_character)
+                self.__raise__error('=',self.reader.state.current_character)
         elif self.reader.state.current_character=='=':
             s+="=";
             self.reader.next()
@@ -84,7 +85,7 @@ class Lexer:
             self.reader.next()
             while(self.reader.state.current_character!=start_quote):
                 if self.reader.state.current_character == '':
-                    self.__raise_lexical_error(start_quote, "EOF")
+                    self.__raise__error(start_quote, "EOF")
                 elif self.reader.state.current_character=='~':
                     self.__skip_comments()
                 s+=self.reader.state.current_character
@@ -125,5 +126,5 @@ class Lexer:
             return True
         return False
                 
-    def __raise_lexical_error(self,exp,found):
-        raise Exception("Lexical error at "+str(self.reader.state.line)+":"+str(self.reader.state.line)+" found: "+found+" expected: "+exp)
+    def __raise__error(self,exp,found):
+        raise LexicalError(self.reader.state.line,self.reader.state.line,found,exp)

@@ -1,6 +1,8 @@
 from Lexeme import Lexeme
 from matcher.CompareMatcher import CompareMatcher
+
 class Access(Lexeme):
-    def __init__(self,strLexeme):
-        super(Access,self).__init__(strLexeme)
+    string = "."
+    def __init__(self,str):
+        super(Access,self).__init__(str)
     matcher = CompareMatcher(".")
