@@ -6,12 +6,8 @@ class CharacterReader(object):
     def __init__(self,file):
         self.source_file = None
         self.state = CharacterState(self)
-        try:
-            self.source_file = SourceFile(file)
-            self.source_file.open("rb")
-        except Exception as ex:
-            print "Cannot open source file: "+file
-            raise ex
+        self.source_file = SourceFile(file)
+        self.source_file.open("rb")
         self.next()
 
     def next(self):

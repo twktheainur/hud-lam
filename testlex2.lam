@@ -1,6 +1,10 @@
-baur sys
-gond Test adar Toto,Tata:
-    Thavron = tass(lol):
-        sen.can(1,3,"Lol!")
-    meth
+~baur sys
+~gond Test adar Toto,Tata:
+~    Thavron = tass(lol):
+~        sen.can(1,3,"Lol!")
+~    meth
+~meth
+
+minna:
+    glamor 'Hello'
 meth

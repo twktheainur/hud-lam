@@ -55,11 +55,9 @@ class Parser(object):
          fc = self.lexer.reader.source_file.filename.split('.')
          return fc[len(fc)-2]
 
-    def generate_py_module(self):
+    def generate_py_ast(self):
         tree = self.parse()
-#        mod_name = self.mod_name()
-#        module = types.ModuleType(mod_name)
-        return tree.module()
+        return tree.python_ast()
 
     def parse(self):
         return self.__program()
@@ -243,7 +241,6 @@ class Parser(object):
         return node
 
     def __echo_statement(self):
-        print "Glamor:"
         node = EchoNode(self)
         self.__ascertain_lexeme(Echo)
         node.add_expr(self.__expression())
@@ -270,7 +267,10 @@ class Parser(object):
                 value=self.__input_statement()
             else:
                 value=self.__expression()
-        return AffectationNode(self,affectee,value)
+            if value==None:
+                return AccessRootNode(self,affectee,'load')
+            else:
+                return AffectationNode(self,AccessRootNode(self,affectee,'store'),value)
 
     def __try__statement(self):
         self.__ascertain_lexeme(Try)
@@ -326,7 +326,7 @@ class Parser(object):
         elif self.__lexeme_is(SeqStart):
             ret=self.__sequence_litteral()
         elif self.__lexeme_is(This) or self.__lexeme_is(Name):
-            ret=self.__access_statement()
+            ret=AccessRootNode(self,self.__access_statement(),'load')
         elif self.__lexeme_is(Not) or ( self.__lexeme_is(Operator) and\
                                         self.__lexeme_string()=='-'):
             operator=self.__lexeme_string()
@@ -338,9 +338,7 @@ class Parser(object):
             ret=self.__expression()
             self.__ascertain_lexeme(GroupEnd)
         else:
-            self.__raise_error(self.lexer.reader.state.line,
-                                      self.lexer.reader.state.column,
-                                      "Factor", self.__lexeme_string())
+            self.__raise_error("Factor", self.__lexeme_string())
         return ret
 
     def __boolean_expression(self):
@@ -374,19 +372,16 @@ class Parser(object):
     def __access_statement(self,rec=False):
         name=None
         accessee=None
-        print "access"
         #Access to a class member
-        if self.__lexeme_is(This):
+        if self.__lexeme_is(This) and not rec:
             name = self.__lexeme_string()
-            print self.__lexeme_string(),
             self.__ascertain_lexeme(This)
         #Access to members of a variable
         elif self.__lexeme_is(Name):
             name = self.__lexeme_string()
-            print self.__lexeme_string(),
             self.__ascertain_lexeme(Name)
         #Access to methods/attributes of the parent class
-        elif self.__lexeme_is(Parent):
+        elif self.__lexeme_is(Parent) and not rec:
             name = self.__lexeme_string()
             pname = ""
             args = []
@@ -409,13 +404,12 @@ class Parser(object):
             return AccessNode(self,name,accessee)
         #Recursive sub access
         if self.__lexeme_is(Access):
-            print "."
             self.__ascertain_lexeme(Access)
             if self.__lexeme_is(Name):
                 name = self.__lexeme_string()
                 self.__ascertain_lexeme(Name)
                 if self.__lexeme_is(SeqStart):
-                    accessee = self.__array_access_statement()    
+                    accessee = self.__array_access_statement(name)
             elif self.__lexeme_is(Call):
                 accessee = self.__call_statement(name)
             else:
@@ -431,8 +425,8 @@ class Parser(object):
             sub_accessor = self.__array_access_statement()
         return ArrayAccessorNode(self,expr,sub_accessor)
 
-    def __call_statement(self,name):
-        call_node = CallNode(self,name)
+    def __call_statement(self):
+        call_node = CallNode(self)
         self.__ascertain_lexeme(Call)
         self.__ascertain_lexeme(GroupStart)
         while not self.__lexeme_is(GroupEnd):
@@ -490,12 +484,7 @@ class Parser(object):
     def __ascertain_lexeme(self,lclass):
         if(not self.__lexeme_is(lclass)):
             self.__raise_error(lclass.string,self.lexer.state.current_lexeme.string)
-#        print "ACS: ",self.lexer.state.current_lexeme.string
         self.lexer.next();
 
     def __raise_error(self,exp,found):
         raise SyntacticError(self.lexer.state.line,self.lexer.state.column,exp,found);
-
-
-
-
