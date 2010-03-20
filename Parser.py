@@ -55,6 +55,7 @@ class Parser(object):
 #       Instanciate and initialize the Lexer
         self.lexer = Lexer(filename,str_in)
         self.importing = False
+        self.name = filename.split('.')[0]
 
     def mod_name(self):
 #        Extracts the name of the main module form the file name
@@ -63,6 +64,7 @@ class Parser(object):
          return fc[len(fc)-2]
 
     def generate_py_ast(self):
+        print "Parsing dude!"
         #parse source file
         tree = self.parse()
         #generate python AST from hud-lam AST
@@ -262,10 +264,11 @@ class Parser(object):
         return node
 
     def __input_statement(self):
-        #input_statement: INPUT GROUPSTART expression GROUPEND
+        #input_statement: INPUT GROUPSTART StringLiteral GROUPEND
         self.__ascertain_lexeme(Input)
         self.__ascertain_lexeme(GroupStart)
-        expr=self.__expression()
+        expr=ValuedNode(self,self.__lexeme_string(),StringLiteral)
+        self.__ascertain_lexeme(StringLiteral)
         self.__ascertain_lexeme(GroupEnd)
         return InputNode(self,expr)
         
@@ -441,7 +444,7 @@ class Parser(object):
                 if self.__lexeme_is(SeqStart):
                     accessee = self.__array_access_statement(name)
             elif self.__lexeme_is(Call):
-                accessee = self.__call_statement(name)
+                accessee = self.__call_statement()
             else:
                 accessee = self.__access_statement(True)
         return AccessNode(self,name,accessee)
@@ -468,7 +471,7 @@ class Parser(object):
         self.__ascertain_lexeme(GroupEnd)
         return call_node
 
-    def __function_declaration_statement(self,name):
+    def __function_declaration_statement(self):
         # (BOUND)? FUNCTION NAME GROUPSTART expression (SEPARATOR expression)* GROUPEND
 #         BLOCKSTART instruction_sequence BLOCKEND
         bound = False

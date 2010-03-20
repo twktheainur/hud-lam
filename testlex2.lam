@@ -1,10 +1,13 @@
-~baur sys
-~gond Test adar Toto,Tata:
-~    Thavron = tass(lol):
-~        sen.can(1,3,"Lol!")
-~    meth
-~meth
+gond Aragorn adar Arathorn:
+    tass Thavon(haha):
+        sen.str = haha
+        toto = lol
+    meth
+meth
 
 minna:
-    glamor 'Hello'
+    c = object.can()
+    glamor c
+    b = toltha("frak:")
+    glamor b
 meth

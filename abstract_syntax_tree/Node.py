@@ -31,7 +31,7 @@ class ModuleNode(Node):
     
     def python_ast(self):
         return ast.Module([s.python_ast() for s in self.children]+
-                          [self.main_entry.python_ast()])
+                          [self.main_entry.python_ast()],lineno=self.line,col_offset=self.column)
 
     def module(self):
         return types.ModuleType(str(self.name))
@@ -112,11 +112,11 @@ class FunctionNode(Node):
             iseq = self.instruction_sequence.python_ast()
         if self.bound:
             decorators.append(ast.Name('classmethod',ast.Load()))
-        return ast.FunctionDef(name,
+        return ast.FunctionDef(self.name,
                                 ast.arguments([ast.Name(name,ast.Param())
                                               for name in self.parameters],
                                               None,None,[]),
-                                iseq,decorators)
+                                iseq,decorators,lineno=self.line,col_offset=self.column)
 class ForInNode(Node):
     def __init__(self,parser,var_name,seq_node,instr_seq):
         Node.__init__(self,parser)
@@ -125,9 +125,9 @@ class ForInNode(Node):
         self.instructions = instr_seq
 
     def python_ast(self):
-        return ast.For(ast.Name(self.var,ast.Store()),
+        return ast.For(ast.Name(self.var,ast.Store(),lineno=self.line,col_offset=self.column),
                        self.sequence.python_ast(),
-                       self.instructions.python_ast(),[])
+                       self.instructions.python_ast(),[],lineno=self.line,col_offset=self.column)
 
 class ForIfNode(Node):
     def __init__(self,parser,test,instr_seq):
@@ -136,7 +136,7 @@ class ForIfNode(Node):
         self.instructions = instr_seq
 
     def python_ast(self):
-        return ast.While(test.python_ast(),self.instructions,[])
+        return ast.While(test.python_ast(),self.instructions,[],lineno=self.line,col_offset=self.column)
 
 class IfNode(Node):
     def __init__(self,parser,test,iftrue,orelse):
@@ -146,9 +146,20 @@ class IfNode(Node):
         self.orelse=orelse
         
     def python_ast(self):
-        return ast.If(slf.test.python_ast(),self.iftrue.python_ast(),self.orelse.python_ast())
+        test = self.test.python_ast()
+        try:
+            iftrue = self.iftrue.python_ast()
+        except:
+            iftrue = []
+        try:
+            orelse = self.orelse.python_ast()
+        except:
+            orelse = []
+        return ast.If(test,iftrue,orelse,lineno=self.line,col_offset=self.column)
 
-
+binary_operators_methods={'+':'Add','-':'Sub','%':'Mod','*':'Mult','/':'Div',\
+                          '==':'Eq','!=':'NotEq','>':'Gt','>=':'GtE','<':'Lt',\
+                          '<=':'lteq','a':'And','egor':'Or'}
 class BinaryOperatorNode(Node):
     def __init__(self,parser,left,operator,right):
         Node.__init__(self,parser)
@@ -157,14 +168,14 @@ class BinaryOperatorNode(Node):
         self.right=right
         
     def python_ast(self):
-        os = self.operator.string
-        op = getattr(ast,binary_operators_methods[os])
+        os = self.operator
+        op = getattr(ast,binary_operators_methods[os])(lineno=self.line,col_offset=self.column)
         if os== '+' or os=='-' or os=='/' or os=='*' or os=='%':
-            return ast.BinOp(left.python_ast(),op,right.python_ast(),lineno=self.line,col_offset=self.column)
+            return ast.BinOp(self.left.python_ast(),op,self.right.python_ast(),lineno=self.line,col_offset=self.column)
         elif os=='a' :
-            return ast.BoolOP(left.python_ast(),op,right.python_ast(),lineno=self.line,col_offset=self.column)
+            return ast.BoolOP(self.left.python_ast(),op,self.right.python_ast(),lineno=self.line,col_offset=self.column)
         else:
-            return ast.Compare(left.python_ast(),[op],[right.python_ast()],lineno=self.line,col_offset=self.column)
+            return ast.Compare(self.left.python_ast(),[op],[self.right.python_ast()],lineno=self.line,col_offset=self.column)
 
     def semantic_check(self):
         pass
@@ -191,9 +202,7 @@ class AffectationNode(Node):
         self.value = value
         
     def python_ast(self):
-        if value.__class__=="CallNode" or value.is_call:
-            py_value = value.python_ast()
-        return ast.Assign([affectee.python_ast()],py_value,lineno=self.line,col_offset=self.column)
+        return ast.Assign([self.affectee.python_ast()],self.value.python_ast(),lineno=self.line,col_offset=self.column)
 
 class TryNode(Node):
     def __init__(self,parser,try_seq,ex_name,catch_seq):
@@ -203,7 +212,7 @@ class TryNode(Node):
         self.catch_sequence = catch_seq
 
     def python_ast(self):
-        return ast.TryExcept(self.try_sequence.python_ast(),[ast.ExceptHandler(ex_name,ast.Load())],None, self.catch_sequence.python_ast())
+        return ast.TryExcept(self.try_sequence.python_ast(),[ast.ExceptHandler(ex_name,ast.Load())],None, self.catch_sequence.python_ast(),lineno=self.line,col_offset=self.column)
 
 class EchoNode(Node):
     def __init__(self,parser):
@@ -214,7 +223,7 @@ class EchoNode(Node):
         values = []
         for ex in self.expressions:
             values.append(ex.python_ast())
-        return ast.Print(None,values,False)
+        return ast.Print(None,values,False,lineno=self.line,col_offset=self.column)
         
     def add_expr(self,expr):
         self.expressions.append(expr)
@@ -226,7 +235,12 @@ class InputNode(Node):
         self.prompt = expr
 
     def python_ast(self):
-        return ast.Expr(ast.Call(ast.Name('raw_input',ast.Load()),[expr.python_ast()],None,None,None))
+        return ast.Call(ast.Name('raw_input',
+                                           ast.Load(),
+                                           lineno=self.line,col_offset=self.column),
+                                 [self.prompt.python_ast()],
+                                 [],None,None,
+                                 lineno=self.line,col_offset=self.column)
 
 class ValuedNode(Node):
     def __init__(self,parser,value,type):
@@ -252,7 +266,7 @@ class SequenceNode(Node):
         self.items.append(item_node)
 
     def python_ast(self):
-        return ast.List([n.pytho_ast() for n in self.items],ast.Load())
+        return ast.List([n.python_ast() for n in self.items],ast.Load(),lineno=self.line,col_offset=self.column)
 
 class CallNode(Node):
     def __init__(self,parser):
@@ -278,12 +292,11 @@ class AccessNode(Node):
         self.child = accessee
 
     def python_ast(self):
-        print "access"
-        pmode = ast.Load()
+        pmode = ast.Load(lineno=self.line,col_offset=self.column)
         if self.mode=='store':
-            pmode = ast.Store()
+            pmode = ast.Store(lineno=self.line,col_offset=self.column)
         if self.leaf:
-            return ast.Name(self.name,pmode,lineno=self.line,col_offset=self.column)
+            return ast.Name(self.name.encode('ascii','ignore'),pmode,lineno=self.line,col_offset=self.column)
         else:
             return ast.Attribute(self.child.python_ast(),self.name,pmode,lineno=self.line,col_offset=self.column)
     
@@ -325,7 +338,6 @@ class AccessRootNode(Node):
         self.node = new_root
 
     def python_ast(self):
-        print "Node:",self.node
         return self.node.python_ast()
 
 class SuperNode(Node):
@@ -338,7 +350,7 @@ class SuperNode(Node):
        self.args = args
 
     def python_ast(self):
-        return ast.Call(ast.Attribute(Name(self.parent_name,ast.Load()),self.method_name,ast.Load()),[n.python_ast() for n in self.args],[],None,None)
+        return ast.Call(ast.Attribute(Name(self.parent_name,ast.Load(),lineno=self.line,col_offset=self.column),self.method_name,ast.Load(),lineno=self.line,col_offset=self.column),[n.python_ast() for n in self.args],[],None,None,lineno=self.line,col_offset=self.column)
 
 class ArrayAccessorNode(Node):
     def __init__(self,parser,expr,subaccessor=None):
@@ -348,10 +360,10 @@ class ArrayAccessorNode(Node):
         self.mode = "load"
 
     def python_ast(self):
-        acc_mode = ast.Load()
+        acc_mode = ast.Load(lineno=self.line,col_offset=self.column)
         if self.mode == "store":
-            acc_mode = ast.Store()
-        return ast.Subscript(self.child.python_ast(),ast.Index(self.index.python_ast(),acc_mode))
+            acc_mode = ast.Store(lineno=self.line,col_offset=self.column)
+        return ast.Subscript(self.child.python_ast(),ast.Index(self.index.python_ast(),acc_mode),lineno=self.line,col_offset=self.column)
 
 
 class EntryNode(Node):
@@ -359,8 +371,8 @@ class EntryNode(Node):
         Node.__init__(self,parser)
         
     def python_ast(self):
-        return ast.If(test=ast.Compare(left=ast.Name(id='__name__', ctx=ast.Load()), ops=[ast.Eq()],
-                  comparators=[ast.Str(s='__main__')]),
+        return ast.If(test=ast.Compare(left=ast.Name(id='__name__', ctx=ast.Load(),lineno=self.line,col_offset=self.column), ops=[ast.Eq(lineno=self.line,col_offset=self.column)],
+                  comparators=[ast.Str(s='__main__',lineno=self.line,col_offset=self.column)],lineno=self.line,col_offset=self.column),
                   body=self.instruction_sequence.python_ast(), orelse=[],lineno=self.line,col_offset=self.column)
 
     def def_function(self,instrction_sequence):
