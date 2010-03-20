@@ -1,15 +1,19 @@
 
-
 class SourceFile(object):
 
-    def __init__(self,filename):
+    def __init__(self,filename,str_in=False):
+        self.str_in = str_in
         self.filename=filename
         self.file = None
 
     def open(self,mode):
-        self.file = open(self.filename,mode)
-        if not self.file:
-            raise Exception("No Such File:"+self.filename)
+        if self.str_in:
+            import cStringIO
+            self.file = cStringIO.StringIO(self.filename)
+        else:
+            self.file = open(self.filename,mode)
+            if not self.file:
+                raise Exception("No Such File:"+self.filename)
 
     def peek(self,n):
         if n==None:

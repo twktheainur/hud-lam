@@ -16,7 +16,6 @@ from lexemes.Access import Access
 from lexemes.Affectation import Affectation
 from lexemes.This import This
 from lexemes.If import If
-from lexemes.Do import Do
 from lexemes.Function import Function
 from lexemes.FloatLiteral import FloatLiteral
 from lexemes.IntegerLiteral import IntegerLiteral
@@ -37,6 +36,7 @@ from lexemes.Else import Else
 from lexemes.Echo import Echo
 from lexemes.Input import Input
 from lexemes.In import In
+from lexemes.Slice import Slice
 
 from Lexer import Lexer
 from LexerState import LexerState
@@ -47,22 +47,33 @@ from abstract_syntax_tree.Node import *
 class Parser(object):
     """
     Parse a source file
+    This is a standard recursive descent parser. The base code offers
+    the possibility to do indefinite lookahead which makes it possible to
+    implement LL(k) parsers.
     """
-    def __init__(self,filename):
-        self.lexer = Lexer(filename)
+    def __init__(self,filename,str_in=False):
+#       Instanciate and initialize the Lexer
+        self.lexer = Lexer(filename,str_in)
+        self.importing = False
 
     def mod_name(self):
+#        Extracts the name of the main module form the file name
+#       ( ie takes off the file extention)
          fc = self.lexer.reader.source_file.filename.split('.')
          return fc[len(fc)-2]
 
     def generate_py_ast(self):
+        #parse source file
         tree = self.parse()
+        #generate python AST from hud-lam AST
         return tree.python_ast()
 
     def parse(self):
+        #starting point of the recusive descent
         return self.__program()
 
     def __program(self):
+        # program: import_statement|class_declaration_statement|entry_point_statement
         node =ModuleNode(self)
         while(self.lexer.state.current_lexeme!=None and not self.__lexeme_is(EOF)):
             if(self.__lexeme_is(Import)):
@@ -70,20 +81,24 @@ class Parser(object):
             elif self.__lexeme_is(Class):
                 node.add_class(self.__class())
             elif (self.__lexeme_is(Enter)):
-                node.add_entry(self.__entry_point())
+                entry = self.__entry_point()
+                if not self.importing:
+                    node.add_entry(entry)
             else:
                 self.__raise_error("baur, gond, or minna",
                                    self.__lexeme_string())
         return node
 
     def __import(self):
+        #import_statement: IMPORT MODULENAME
         self.__ascertain_lexeme(Import)
         name=self.__lexeme_string()
         self.__check_name(ModuleName)
         return ImportNode(self,name)
     
     def __class(self):
-        
+        #class_declaration_statement: CLASS CLASSNAME (PARENT CLASSNAME(SEPARATOR CLASSNAME)*)?
+        #                             BLOCKSTART (affectation_statement)* BLOCKEND
         self.__ascertain_lexeme(Class)
         if self.__lexeme_is(Name):
             name= self.__lexeme_string()
@@ -102,13 +117,17 @@ class Parser(object):
                     self.__check_name(ClassName)
                     node.add_parent(pname)
         self.__ascertain_lexeme(BlockStart)
-        while(self.__lexeme_is(Name)):
-            node.add_member(self.__affectation_statement())
+        while(self.__lexeme_is(Name) or self.__lexeme_is(Function) or self.__lexeme_is(Bound)):
+            if self.__lexeme_is(Name):
+                node.add_member(self.__affectation_statement())
+            else:
+                node.add_member(self.__function_declaration_statement())
         self.__ascertain_lexeme(BlockEnd)
         return node
 
 
     def __entry_point(self):
+        #entry_point_statement: ENTER BLOCKSTART instruction_sequence BLOCKEND
         node = EntryNode(self)
         self.__ascertain_lexeme(Enter)
         self.__ascertain_lexeme(BlockStart)
@@ -117,12 +136,13 @@ class Parser(object):
         return node
 
     def __instruction_sequence(self):
+        #instruction_sequence: instruction (instruction INSTRUCTIONSEPARATOR)*
         node = InstructionSequenceNode(self)
         node.add_instruction(self.__instruction())
         if(self.__lexeme_is(InstructionSeparator)):
             self.lexer.next()
         while (self.__lexeme_is(Name) or self.__lexeme_is(This) or\
-        self.__lexeme_is(For) or self.__lexeme_is(If) or self.__lexeme_is(Do) or
+        self.__lexeme_is(For) or self.__lexeme_is(If) or
          self.__lexeme_is(Parent) or self.__lexeme_is(Echo) or self.__lexeme_is(Input)) and\
          not self.__lexeme_is(Catch):
             node.add_instruction(self.__instruction())
@@ -131,13 +151,13 @@ class Parser(object):
         return node
 
     def __instruction(self):
+        #instruction: try_statement|if_statement|do_statement|for_statement|echo_statement|
+        #             input_statement|affectation_statement
         node = None
         if self.__lexeme_is(Try):
             node = self.__try__statement()
         elif self.__lexeme_is(If):
             node = self.__if_statement(False)
-        elif self.__lexeme_is(Do):
-            node = self.__do_statement()
         elif self.__lexeme_is(For):
             if self.__lexeme_is(Name,2) and\
                self.__lexeme_is(In,3):
@@ -153,47 +173,38 @@ class Parser(object):
         return node
     
     def __for_in_statement(self):
+        # for_statement: FOR NAME IN sequence_literal|access_statement[[type(sequence)]]
         self.__ascertain_lexeme(For)
         var_name= self.__lexeme_string()
         self.__ascertain_lexeme(Name)
         self.__ascertain_lexeme(In)
-        isseq = True
         seq_node = None
         if(self.__lexeme_is(SeqStart)):
-            seq_node=self.__sequence_litteral()
+            seq_node=self.__sequence_literal()
         else:
 #           the Access statement is handled by __affectation_statement
-            isseq = False
             seq_node=self.__affectation_statement()
         self.__ascertain_lexeme(BlockStart)
         inst_seq=self.__instruction_sequence()
         self.__ascertain_lexeme(BlockEnd)
-        return ForInNode(self,var_name,isseq,seq_node,inst_seq)
+        return ForInNode(self,var_name,seq_node,inst_seq)
 
-
+    #a While instruction
     def __for_if_statement(self):
-        self.__ascertain_lexeme(For)
-        aff_stmt = None
-        isaff = True
-        do_instr = None
-        if self.__lexeme_is(Affectation, 2):
-            aff_stmt=self.__affectation_statement()
-        else:
-            aff_stmt=self.__lexeme_string()
-            isaff=False
-            self.__ascertain_lexeme(Name)
-        self.__ascertain_lexeme(If)
-        test=self.__boolean_expression()
-
-        if(self.__lexeme_is(Do)):
-            self.lexer.next()
-            do_instr=self.__instruction()
-        self.__ascertain_lexeme(BlockStart)
-        instr_seq=self.__instruction_sequence()
+        test=None
+        if(self.__lexeme_is(For)):
+            self.__ascertain_lexeme(For)
+            self.__ascertain_lexeme(If)
+            test=self.__boolean_expression()
+            self.__ascertain_lexeme(BlockStart)
+        inst_seq=self.__instruction_sequence()
         self.__ascertain_lexeme(BlockEnd)
-        return ForIfNode(self,isaff,aff_stmt,test,do_instr,instr_seq)
+        return ForIfNode(self,test,inst_seq)
 
     def __if_statement(self,elseif):
+        #if_statement: IF boolean_expression BLOCKSTART instruction_sequence
+        #              (ELSE IF boolean_expression BLOCKSTART instruction_sequence)*
+        #              (ELSE BLOCKSTART instruction_sequence)? BLOCKEND
         iftrue = None
         orelse = None
         test = None
@@ -217,30 +228,31 @@ class Parser(object):
                 self.__ascertain_lexeme(BlockEnd)
         return IfNode(self,test,iftrue,orelse)
 
-
-    def __do_statement(self):
-        test=None
-        self.__ascertain_lexeme(Do)
-        self.__ascertain_lexeme(BlockStart)
-        inst_seq=self.__instruction_sequence()
-        self.__ascertain_lexeme(BlockEnd)
-        if(self.__lexeme_is(For)):
-            self.__ascertain_lexeme(For)
-            self.__ascertain_lexeme(If)
-            test=self.__boolean_expression()
-        return DoNode(self,test,inst_seq)
-
-    def __sequence_litteral(self):
+    def __sequence_literal(self):
+        #sequence_literal: SEQSTART (expression)+|INTEGETLITERAL SLICE INTEGERLITERAL SEQEND
         node = SequenceNode(self)
         self.__ascertain_lexeme(SeqStart)
-        node.add_item(self.__expression())
-        while self.__lexeme_is(Separator):
-            self.lexer.next()
+        if self.__lexeme_is(Slice,2):
+            start = int(self.__lexeme_string())
+            self.__ascertain_lexeme(IntegerLiteral)
+            self.__ascertain_lexeme(Slice)
+            end = int(self.__lexeme_string())
+            self.__ascertain_lexeme(IntegerLiteral)
+            step = 1
+            if start>end:
+                step=-1
+            for i in range(start,end,step):
+                node.add_item(ValuedNode(self,str(i),IntegerLiteral))
+        else:
             node.add_item(self.__expression())
+            while self.__lexeme_is(Separator):
+                self.lexer.next()
+                node.add_item(self.__expression())
         self.__ascertain_lexeme(SeqEnd)
         return node
 
     def __echo_statement(self):
+        #echo_statement: ECHO expression (SEPARATOR expression)*
         node = EchoNode(self)
         self.__ascertain_lexeme(Echo)
         node.add_expr(self.__expression())
@@ -250,6 +262,7 @@ class Parser(object):
         return node
 
     def __input_statement(self):
+        #input_statement: INPUT GROUPSTART expression GROUPEND
         self.__ascertain_lexeme(Input)
         self.__ascertain_lexeme(GroupStart)
         expr=self.__expression()
@@ -257,13 +270,12 @@ class Parser(object):
         return InputNode(self,expr)
         
     def __affectation_statement(self):
+        #affectation_statement: access_statement (AFFECT access_statement|function_declaration_Statement)?
         affectee=self.__access_statement()
         value=None
         if self.__lexeme_is(Affectation):
             self.__ascertain_lexeme(Affectation)
-            if self.__lexeme_is(Function) or self.__lexeme_is(Bound):
-                value=self.__function_declaration_statement()
-            elif self.__lexeme_is(Input):
+            if self.__lexeme_is(Input):
                 value=self.__input_statement()
             else:
                 value=self.__expression()
@@ -273,6 +285,7 @@ class Parser(object):
                 return AffectationNode(self,AccessRootNode(self,affectee,'store'),value)
 
     def __try__statement(self):
+        #try_statement: TRY BLOCKSTART instruction_sequence CATCH (ClassName) BLOCKSTART instruction_sequence BLOCKEND
         self.__ascertain_lexeme(Try)
         self.__ascertain_lexeme(BlockStart)
         try_seq = self.__instruction_sequence()
@@ -287,9 +300,11 @@ class Parser(object):
         return TryNode(self,try_seq,ex_name,catch_seq)
 
     def __expression(self):
+        #expression: boolean_expression
         return self.__boolean_expression()
 
     def __comparee(self):
+        #comparee: term ((PLUS|MINUS) term)?
         factor=self.__term()
         while self.__lexeme_is(Operator) and (self.__lexeme_string()=="+" or
                                               self.__lexeme_string()=="-"):
@@ -300,6 +315,7 @@ class Parser(object):
         return factor
 
     def __term(self):
+        #term = factor ((TIMES|DIVIDED|MODULUS) factor)?
         factor=self.__factor()
         while self.__lexeme_is(Operator) and (self.__lexeme_string()=="*" or \
               self.__lexeme_string()=="/" or self.__lexeme_string()=="%"):
@@ -310,6 +326,9 @@ class Parser(object):
         return factor
     
     def __factor(self):
+        #factor = NONE|FLOATLITERAL|INTEGERLITERAL|STRINGLITERAL|sequence_literal|
+        #         access_statement|((MINUS|NOT)expression)| GROUPSTART expression GROUPEND
+
         ret=None
         if self.__lexeme_is(NoneL):
             ret=ValuedNode(self,"None")
@@ -324,7 +343,7 @@ class Parser(object):
             ret=ValuedNode(self,self.__lexeme_string(),StringLiteral)
             self.lexer.next()
         elif self.__lexeme_is(SeqStart):
-            ret=self.__sequence_litteral()
+            ret=self.__sequence_literal()
         elif self.__lexeme_is(This) or self.__lexeme_is(Name):
             ret=AccessRootNode(self,self.__access_statement(),'load')
         elif self.__lexeme_is(Not) or ( self.__lexeme_is(Operator) and\
@@ -342,6 +361,7 @@ class Parser(object):
         return ret
 
     def __boolean_expression(self):
+        #boolean_expression: TRUE|FALSE|(relation ((AND|OR) relation)?)
         if(self.__lexeme_is(True)):
             factor= ValueNode(self,self.__lexeme_string(),True)
             self.lexer.next()
@@ -358,6 +378,7 @@ class Parser(object):
         return factor
 
     def __relation(self):
+        #relation = coparee ((LT|GT|LE,GE,EQ,NEQ) comparee)?
         factor=self.__comparee()
         while self.__lexeme_is(Operator) and (self.__lexeme_string()=='>'  or\
               self.__lexeme_string()=='>=' or self.__lexeme_string()=='<'  or\
@@ -370,6 +391,10 @@ class Parser(object):
         return factor
 
     def __access_statement(self,rec=False):
+        #access_Statement: ((PARENT ACCESS CLASSNAME ACCESS NAME
+#                           GROUPSTART
+#                           expression (SEPARATOR expression)* GROUPEND )
+#                           |NAME|THIS) (ACCESS access_statement|array_access_statement|call_statement)
         name=None
         accessee=None
         #Access to a class member
@@ -384,6 +409,7 @@ class Parser(object):
         elif self.__lexeme_is(Parent) and not rec:
             name = self.__lexeme_string()
             pname = ""
+            mname = ""
             args = []
             #adar
             self.__ascertain_lexeme(Parent)
@@ -393,6 +419,10 @@ class Parser(object):
             if self.__lexeme_is(Name):
                 pname = self.__lexeme_string()
                 self.__check_name(ClassName)
+            if self.__lexeme_is(Access):
+                self.lexer.next()
+                mname = self.__lexeme_string()
+                self.__ascertain_lexeme(Name)
             #((expression)?(separator expression)*)
             self.__ascertain_lexeme(GroupStart)
             while not self.__lexeme_is(GroupEnd):
@@ -400,8 +430,8 @@ class Parser(object):
                 if not self.__lexeme_is(GroupEnd):
                     self.__ascertain_lexeme(Separator)
             self.__ascertain_lexeme(GroupEnd)
-            accessee = SuperNode(self,pname,args)
-            return AccessNode(self,name,accessee)
+            accessee = SuperNode(self,pname,mname,args)
+            return accessee
         #Recursive sub access
         if self.__lexeme_is(Access):
             self.__ascertain_lexeme(Access)
@@ -417,6 +447,7 @@ class Parser(object):
         return AccessNode(self,name,accessee)
 
     def __array_access_statement(self):
+        #array_access_statement: SEQSTART expression SEQEND
         self.__ascertain_lexeme(SeqStart)
         expr = self.__expression()
         sub_accessor=None
@@ -426,6 +457,7 @@ class Parser(object):
         return ArrayAccessorNode(self,expr,sub_accessor)
 
     def __call_statement(self):
+        #call_Statement: CALL GROUPSTART expression (SEPARATOR expression)* GROUPEND
         call_node = CallNode(self)
         self.__ascertain_lexeme(Call)
         self.__ascertain_lexeme(GroupStart)
@@ -436,12 +468,17 @@ class Parser(object):
         self.__ascertain_lexeme(GroupEnd)
         return call_node
 
-    def __function_declaration_statement(self):
-        func_node = FunctionNode(self)
+    def __function_declaration_statement(self,name):
+        # (BOUND)? FUNCTION NAME GROUPSTART expression (SEPARATOR expression)* GROUPEND
+#         BLOCKSTART instruction_sequence BLOCKEND
+        bound = False
         if self.__lexeme_is(Bound):
-            func_node.bound = True
+            bound = True
             self.__ascertain_lexeme(Bound)
         self.__ascertain_lexeme(Function)
+        name = self.__lexeme_string()
+        self.__ascertain_lexeme(Name)
+        func_node = FunctionNode(self,name,bound)
         self.__ascertain_lexeme(GroupStart)
         if self.__lexeme_is(Name):
             func_node.add_parameter(self.__lexeme_string())
@@ -452,18 +489,19 @@ class Parser(object):
             self.__ascertain_lexeme(Name)
         self.__ascertain_lexeme(GroupEnd)
         self.__ascertain_lexeme(BlockStart)
-        func_node.body = self.__instruction_sequence()
+        func_node.instruction_sequence = self.__instruction_sequence()
         self.__ascertain_lexeme(BlockEnd)
         return func_node
         
-    def __lexeme_is(self,lclass, *args):
-        if len(args)==0 or (len(args)==1 and args[0]==1):
+    def __lexeme_is(self,lclass,n=-1):
+        #determine if the nth lexeme corresponds to lcalss
+        if n<=1:
             return self.lexer.state.current_lexeme == lclass
-        elif len(args)==1:
-            index = args[0]
+        #for n>1 we need to do a look ahead in the source file and then restore the start state
+        else:
             start_state = LexerState(self.lexer,self.lexer.state)
             lexeme = None
-            for i in range(1,index):
+            for i in range(1,n):
                 lexeme = self.lexer.next()
             result = (lexeme==lclass)
             start_state.revert()
@@ -473,15 +511,18 @@ class Parser(object):
         return self.lexer.state.current_lexeme.string
     
     def __name_is(self,expected_type):
+        #returns true if a Name Lexeme's class matches the expected_type subclass type
         return expected_type.match(self.lexer.state.current_lexeme.string)!=None
 
     def __check_name(self,expected_type):
+        #If the name is the wrong type trigger a syntactic error
         if not self.__name_is(expected_type):
             self.__raise_error("Valid " + str(expected_type).split('.')[1],
                                 '"'+self.lexer.state.current_lexeme.string+'"')
         self.lexer.next();
 
     def __ascertain_lexeme(self,lclass):
+#        if the current lexeme's class does not match lclass raise and exception
         if(not self.__lexeme_is(lclass)):
             self.__raise_error(lclass.string,self.lexer.state.current_lexeme.string)
         self.lexer.next();

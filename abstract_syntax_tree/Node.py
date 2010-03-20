@@ -9,25 +9,25 @@ import Parser
 import ast
 
 class Node(object):
+    """
+      Base node class, store the line and column
+      corresponding to the actual code in the source file
+      in order to allow to locate semantic errors.
+    """
     def __init__(self,parser):
         self.line=parser.lexer.state.line
         self.column=parser.lexer.state.line
         self.parser = parser
     def python_ast(self):
         pass
-    def semantic_check(self):
-        return true
 
 class ModuleNode(Node):
     def __init__(self,parser):
-        super(ModuleNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.name= parser.mod_name()
         self.children = []
         self.main_entry=None
         self.global_context={} 
-
-    def type(self):
-        return "<module>"
     
     def python_ast(self):
         return ast.Module([s.python_ast() for s in self.children]+
@@ -37,7 +37,6 @@ class ModuleNode(Node):
         return types.ModuleType(str(self.name))
 
     def add_import(self,import_node):
-#        self.__register_global(import_node.name,import_node.python_mod)
         self.children.append(import_node)
 
     def add_class(self,class_node):
@@ -49,10 +48,10 @@ class ModuleNode(Node):
     def __register_global(self,name,item):
         self.global_context.update({name:item})
 
-    
+#TODO: IMPORTANT find a way to handle import of other hudlam modules...
 class ImportNode(Node):
     def __init__(self,parser,name):
-        super(ImportNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.python_mod=None
         self.name=name
         try:
@@ -71,7 +70,7 @@ class ImportNode(Node):
 
 class ClassNode(Node):
     def __init__(self,parser,name):
-        super(ClassNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.name = name
         self.members = []
         self.parents = []
@@ -87,7 +86,7 @@ class ClassNode(Node):
 
 class InstructionSequenceNode(Node):
     def __init__(self,parser):
-        super(InstructionSequenceNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.instructions = []
     def python_ast(self):
         return [i.python_ast() for i in self.instructions]
@@ -96,40 +95,63 @@ class InstructionSequenceNode(Node):
         self.instructions.append(instr_node)
 
 class FunctionNode(Node):
-    def __init__(self,parser):
-        super(FunctionNode,self).__init__(parser)
+    def __init__(self,parser,name,bound):
+        Node.__init__(self,parser)
         self.instruction_sequence = None
         self.parameters = []
+        self.name = name
+        self.bound = bound
         
     def add_parameter(self,name):
         self.parameters.append(name)
-        
-class InstructionNode(Node):
-    def __init__(self,parser):
-        super(InstructionNode,self).__init__(parser)
-        
 
+    def python_ast(self):
+        decorators=[]
+        iseq = []
+        if self.instruction_sequence:
+            iseq = self.instruction_sequence.python_ast()
+        if self.bound:
+            decorators.append(ast.Name('classmethod',ast.Load()))
+        return ast.FunctionDef(name,
+                                ast.arguments([ast.Name(name,ast.Param())
+                                              for name in self.parameters],
+                                              None,None,[]),
+                                iseq,decorators)
 class ForInNode(Node):
-    def __init__(self,parser,var_name,isseq,seq_node,instr_seq):
-        super(ForInNode,self).__init__(parser)
+    def __init__(self,parser,var_name,seq_node,instr_seq):
+        Node.__init__(self,parser)
+        self.var  = var_name
+        self.sequence = seq_node
+        self.instructions = instr_seq
+
+    def python_ast(self):
+        return ast.For(ast.Name(self.var,ast.Store()),
+                       self.sequence.python_ast(),
+                       self.instructions.python_ast(),[])
 
 class ForIfNode(Node):
-    def __init__(self,parser,isaff,aff_stmt,test,do_instr,instr_seq):
-        super(ForIfNode,self).__init__(parser)
+    def __init__(self,parser,test,instr_seq):
+        Node.__init__(self,parser)
+        self.test = test
+        self.instructions = instr_seq
+
+    def python_ast(self):
+        return ast.While(test.python_ast(),self.instructions,[])
 
 class IfNode(Node):
     def __init__(self,parser,test,iftrue,orelse):
-        super(IfNode,self).__init__(parser)
+        Node.__init__(self,parser)
+        self.test = test
+        self.iftrue = iftrue
+        self.orelse=orelse
+        
+    def python_ast(self):
+        return ast.If(slf.test.python_ast(),self.iftrue.python_ast(),self.orelse.python_ast())
 
-class DoNode(Node):
-    def __init__(self,parser,test,instr_seq):
-        super(DoNode,self).__init__(parser)
-        self.test_statement = test
-        self.instruction_sequence = instr_seq
 
 class BinaryOperatorNode(Node):
     def __init__(self,parser,left,operator,right):
-        super(BinaryOperatorNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.operator=operator
         self.left=left
         self.right=right
@@ -154,7 +176,7 @@ class BinaryOperatorNode(Node):
 
 class UnaryOperatorNode(Node):
     def __init__(self,parser,operator,operand):
-        super(UnaryOperator,self).__init__(parser)
+        Node.__init__(self,parser)
         self.operator=operator
         self.operand = operand
         
@@ -164,7 +186,7 @@ class UnaryOperatorNode(Node):
 
 class AffectationNode(Node):
     def __init__(self,parser,affectee,value):
-        super(AffectationNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.affectee = affectee
         self.value = value
         
@@ -175,14 +197,17 @@ class AffectationNode(Node):
 
 class TryNode(Node):
     def __init__(self,parser,try_seq,ex_name,catch_seq):
-        super(TryNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.try_sequence = try_seq
         self.exception_name = ex_name
         self.catch_sequence = catch_seq
 
+    def python_ast(self):
+        return ast.TryExcept(self.try_sequence.python_ast(),[ast.ExceptHandler(ex_name,ast.Load())],None, self.catch_sequence.python_ast())
+
 class EchoNode(Node):
     def __init__(self,parser):
-        super(EchoNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.expressions = []
 
     def python_ast(self):
@@ -197,12 +222,15 @@ class EchoNode(Node):
 
 class InputNode(Node):
     def __init__(self,parser,expr):
-        super(InputNode,self).__init__(parser)
-        self.desination = expr
+        Node.__init__(self,parser)
+        self.prompt = expr
+
+    def python_ast(self):
+        return ast.Expr(ast.Call(ast.Name('raw_input',ast.Load()),[expr.python_ast()],None,None,None))
 
 class ValuedNode(Node):
     def __init__(self,parser,value,type):
-        super(ValuedNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.value=value
         self.type = type
         
@@ -218,14 +246,17 @@ class ValuedNode(Node):
         
 class SequenceNode(Node):
     def __init__(self,parser):
-        super(SequenceNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.items=[]
     def add_item(self,item_node):
         self.items.append(item_node)
 
+    def python_ast(self):
+        return ast.List([n.pytho_ast() for n in self.items],ast.Load())
+
 class CallNode(Node):
     def __init__(self,parser):
-        super(CallNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.arguments=[]
         self.child = None
         self.name='call'
@@ -240,7 +271,7 @@ class CallNode(Node):
 
 class AccessNode(Node):
     def __init__(self,parser,name,accessee):
-        super(AccessNode,self).__init__(parser)
+        Node.__init__(self,parser)
         self.mode = 'load' #default mode, access (as opposed to store for affectation)
         self.leaf = False
         self.name = name
@@ -259,7 +290,7 @@ class AccessNode(Node):
 
 class AccessRootNode(Node):
     def __init__(self,parser,node,mode):
-        super(AccessRootNode,self).__init__(parser)
+        Node.__init__(self,parser)
         # either 'store' or 'load'.
         #if store the last python
         #Attribute Node will be in Store() mode
@@ -298,16 +329,34 @@ class AccessRootNode(Node):
         return self.node.python_ast()
 
 class SuperNode(Node):
-    def __init__(self,parser,parent_name,args):
-        super(SuperNode,self).__init__(parser)
+    def __init__(self,parser,parent_name,method_name,args):
+       Node.__init__(self,parser)
+       self.parent_name = parent_name
+       self.method_name = method_name
+       if method_name=="":
+           self.method_name="__init__"
+       self.args = args
+
+    def python_ast(self):
+        return ast.Call(ast.Attribute(Name(self.parent_name,ast.Load()),self.method_name,ast.Load()),[n.python_ast() for n in self.args],[],None,None)
 
 class ArrayAccessorNode(Node):
     def __init__(self,parser,expr,subaccessor=None):
-        super(ArrayAccessorNode,self).__init__(parser)
+        Node.__init__(self,parser)
+        self.child = subaccessor
+        self.index= expr
+        self.mode = "load"
+
+    def python_ast(self):
+        acc_mode = ast.Load()
+        if self.mode == "store":
+            acc_mode = ast.Store()
+        return ast.Subscript(self.child.python_ast(),ast.Index(self.index.python_ast(),acc_mode))
+
 
 class EntryNode(Node):
     def __init__(self,parser):
-        super(EntryNode,self).__init__(parser)
+        Node.__init__(self,parser)
         
     def python_ast(self):
         return ast.If(test=ast.Compare(left=ast.Name(id='__name__', ctx=ast.Load()), ops=[ast.Eq()],

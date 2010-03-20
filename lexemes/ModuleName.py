@@ -1,4 +1,3 @@
-from Lexeme import Lexeme
 from Name import Name
 from matcher.RegExpMatcher import RegExpMatcher
 class ModuleName(Name):

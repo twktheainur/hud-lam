@@ -8,8 +8,8 @@ class Lexer:
     u"""
         Lexer class: reads and identifies lexemes.
     """
-    def __init__(self,filename):
-        self.reader = CharacterReader(filename)
+    def __init__(self,filename,str_in=False):
+        self.reader = CharacterReader(filename,str_in)
         self.__factory = LexemeFactory()
         self.state = LexerState(self)
         self.state.current_lexeme = self.next()
@@ -52,6 +52,12 @@ class Lexer:
                   self.reader.state.current_character.isalpha() or
                   self.reader.state.current_character=='_'):
                 s=s+self.reader.state.current_character
+                self.reader.next()
+        elif self.reader.state.current_character==':':
+            s+=":"
+            self.reader.next()
+            if self.reader.state.current_character==':':
+                s+=':'
                 self.reader.next()
         elif self.reader.state.current_character=='!':
             s+='!'

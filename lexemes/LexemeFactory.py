@@ -1,7 +1,4 @@
-from Lexeme import Lexeme
 from lexemes import *
-import sys
-import imp
 class LexemeFactory(object):
     def __init__(self):
         self.classes=list()
