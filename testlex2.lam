@@ -1,13 +1,5 @@
-gond Aragorn adar Arathorn:
-    tass Thavon(haha):
-        sen.str = haha
-        toto = lol
-    meth
-meth
-
 minna:
-    c = object.can()
-    glamor c
-    b = toltha("frak:")
-    glamor b
+ f = open.can('testlex2.lam','rb')
+ st = f.read.can()
+ glamor st
 meth

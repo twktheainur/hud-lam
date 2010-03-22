@@ -3,10 +3,11 @@ import lexemes.IntegerLiteral
 import lexemes.StringLiteral
 from lam_exceptions.SemanticError import SemanticError
 from lam_exceptions.SyntacticError import SyntacticError
-import types
-import sys
-import Parser
 import ast
+#For import node
+import Parser
+import Compiler
+
 
 class Node(object):
     """
@@ -30,8 +31,13 @@ class ModuleNode(Node):
         self.global_context={} 
     
     def python_ast(self):
+        main = []
+        try:
+            main = [self.main_entry.python_ast()]
+        except:
+            pass
         return ast.Module([s.python_ast() for s in self.children]+
-                          [self.main_entry.python_ast()],lineno=self.line,col_offset=self.column)
+                          main,lineno=self.line,col_offset=self.column)
 
     def module(self):
         return types.ModuleType(str(self.name))
@@ -48,7 +54,6 @@ class ModuleNode(Node):
     def __register_global(self,name,item):
         self.global_context.update({name:item})
 
-#TODO: IMPORTANT find a way to handle import of other hudlam modules...
 class ImportNode(Node):
     def __init__(self,parser,name):
         Node.__init__(self,parser)
@@ -56,17 +61,15 @@ class ImportNode(Node):
         self.name=name
         try:
             p = Parser.Parser(name+'.lam')
-            self.python_mod = p.generate_py_ast()
-        except (SemanticError,SyntacticError) as se:
+            compiler = Compiler.Compiler(p)
+            compiler.compile()
+        except IOError:
+            pass #No lam module found, python modules will be sought by the python code
+        except (SyntacticError,SemanticError) as se:
             print "In module "+name+": "
             raise se
-        except:
-            try:
-                __import__(name)
-                self.python_mod = sys.modules[name]
-            except:
-                raise Exception("No such module: "+name+" Semantic Error: l"+str(self.line)+"-c"+str(self.column))
-        print self.python_mod
+    def python_ast(self):
+        return ast.Import([ast.alias(self.name,None)],lineno=self.line,col_offset=self.column)
 
 class ClassNode(Node):
     def __init__(self,parser,name):
@@ -80,8 +83,13 @@ class ClassNode(Node):
         self.members.append(node)
 
     def python_ast(self):
+        ast_members = []
+        for n in self.members:
+            if n.__class__.__name__=="FunctionNode":
+                n.method = True
+            ast_members.append(n)
         ast_members = [n.python_ast() for n in self.members]
-        ast_parents = [ast.Name(n,ast.Load()) for n in self.parents]
+        ast_parents = [ast.Name(n,ast.Load(),lineno=self.line,col_offset=self.column) for n in self.parents]
         return ast.ClassDef(self.name,ast_parents,ast_members,[],lineno=self.line,col_offset=self.column)
 
 class InstructionSequenceNode(Node):
@@ -98,23 +106,34 @@ class FunctionNode(Node):
     def __init__(self,parser,name,bound):
         Node.__init__(self,parser)
         self.instruction_sequence = None
-        self.parameters = []
+        self.arguments = []
         self.name = name
         self.bound = bound
+        self.method = False
         
     def add_parameter(self,name):
-        self.parameters.append(name)
+        self.arguments.append(name)
 
     def python_ast(self):
         decorators=[]
         iseq = []
+        args = []
+        if self.method:
+            if self.name=="Thavron":
+                self.name="__init__"
+            args.append(ast.Name("self",ast.Param(),lineno=self.line,col_offset=self.column))
+        if self.bound:
+            if self.method:
+                decorators.append(ast.Name('classmethod',ast.Load()))
+            else:
+                pass #TODO: Raise Semantic exception!
+            
         if self.instruction_sequence:
             iseq = self.instruction_sequence.python_ast()
-        if self.bound:
-            decorators.append(ast.Name('classmethod',ast.Load()))
+
         return ast.FunctionDef(self.name,
-                                ast.arguments([ast.Name(name,ast.Param())
-                                              for name in self.parameters],
+                                ast.arguments(args+[ast.Name(name,ast.Param(),lineno=self.line,col_offset=self.column)
+                                              for name in self.arguments],
                                               None,None,[]),
                                 iseq,decorators,lineno=self.line,col_offset=self.column)
 class ForInNode(Node):
@@ -166,6 +185,11 @@ class BinaryOperatorNode(Node):
         self.operator=operator
         self.left=left
         self.right=right
+        print self.left.__class__.__name__
+        if self.left.__class__.__name__=="AccessRootNode":
+            self.left.in_expr = True
+        elif self.right.__class__.__name__=="AccessRootNode":
+            self.right.in_expr = True
         
     def python_ast(self):
         os = self.operator
@@ -184,12 +208,14 @@ class BinaryOperatorNode(Node):
         return left.type()
 
 
-
+unary_operators_methods={'-':'USub','al':'Not'}
 class UnaryOperatorNode(Node):
     def __init__(self,parser,operator,operand):
         Node.__init__(self,parser)
         self.operator=operator
         self.operand = operand
+        if self.operand.__class__.__name__=="AccessRootNode":
+            self.operand.in_expr=True
         
     def python_ast(self):
         os = self.operator.string
@@ -200,6 +226,9 @@ class AffectationNode(Node):
         Node.__init__(self,parser)
         self.affectee = affectee
         self.value = value
+        if value.__class__.__name__ =="AccessRootNode":
+            if value.node.__class__.__name__=="CallNode":
+                value.node.affect=True
         
     def python_ast(self):
         return ast.Assign([self.affectee.python_ast()],self.value.python_ast(),lineno=self.line,col_offset=self.column)
@@ -274,13 +303,18 @@ class CallNode(Node):
         self.arguments=[]
         self.child = None
         self.name='call'
+        self.affect=False
     def add_argument(self,arg):
         self.arguments.append(arg)
 
     def python_ast(self):
-        return ast.Call(self.child.python_ast(),
+        call = ast.Call(self.child.python_ast(),
                         [n.python_ast() for n in self.arguments],
                         [],None,None,lineno=self.line,col_offset=self.column)
+        if self.affect:
+            return call
+        else:
+            return ast.Expr(call,lineno=self.line,col_offset=self.column)
 
 
 class AccessNode(Node):
@@ -288,7 +322,10 @@ class AccessNode(Node):
         Node.__init__(self,parser)
         self.mode = 'load' #default mode, access (as opposed to store for affectation)
         self.leaf = False
-        self.name = name
+        if name=="sen":
+            self.name = "self"
+        else:
+            self.name = name
         self.child = accessee
 
     def python_ast(self):
@@ -304,11 +341,14 @@ class AccessNode(Node):
 class AccessRootNode(Node):
     def __init__(self,parser,node,mode):
         Node.__init__(self,parser)
+        self.in_expr = False
+        if node.__class__.__name__=="SuperNode":
+            self.node = node
+            return
         # either 'store' or 'load'.
         #if store the last python
         #Attribute Node will be in Store() mode
         self.mode = mode
-
         current_node = node
         node_list = []
         #Building a list of subnodes in their parsing order of appearence.
@@ -329,7 +369,7 @@ class AccessRootNode(Node):
             current_root=current_root.child
             i-=1
         current_root.child = None
-        current_root.leaf = True
+        node_list[0].leaf = True
 
         if new_root.__class__=='CallNode':
             new_root.child.mode=mode #The grammar guarantees new_root.child never is None
@@ -337,7 +377,10 @@ class AccessRootNode(Node):
             new_root.mode = mode
         self.node = new_root
 
+
     def python_ast(self):
+        if self.in_expr:
+            self.node.affect = True
         return self.node.python_ast()
 
 class SuperNode(Node):
@@ -345,12 +388,12 @@ class SuperNode(Node):
        Node.__init__(self,parser)
        self.parent_name = parent_name
        self.method_name = method_name
-       if method_name=="":
+       if method_name=="" or method_name=="Thavron":
            self.method_name="__init__"
        self.args = args
 
     def python_ast(self):
-        return ast.Call(ast.Attribute(Name(self.parent_name,ast.Load(),lineno=self.line,col_offset=self.column),self.method_name,ast.Load(),lineno=self.line,col_offset=self.column),[n.python_ast() for n in self.args],[],None,None,lineno=self.line,col_offset=self.column)
+        return ast.Expr(ast.Call(ast.Attribute(ast.Name(self.parent_name,ast.Load(),lineno=self.line,col_offset=self.column),self.method_name,ast.Load(),lineno=self.line,col_offset=self.column),[ast.Name("self",ast.Load(),lineno=self.line,col_offset=self.column)]+[n.python_ast() for n in self.args],[],None,None,lineno=self.line,col_offset=self.column),lineno=self.line,col_offset=self.column)
 
 class ArrayAccessorNode(Node):
     def __init__(self,parser,expr,subaccessor=None):
@@ -360,6 +403,7 @@ class ArrayAccessorNode(Node):
         self.mode = "load"
 
     def python_ast(self):
+#        print "Arrayyyyyyyyyyyyyyyyy"
         acc_mode = ast.Load(lineno=self.line,col_offset=self.column)
         if self.mode == "store":
             acc_mode = ast.Store(lineno=self.line,col_offset=self.column)

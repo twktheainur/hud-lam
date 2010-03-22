@@ -45,7 +45,7 @@ class Lexer:
 #            if not self.__is_whitespace(self.reader.state.current_character):
 #                self.__raise__error('Whitespace',self.reader.state.current_character)
         #Word
-        elif self.reader.state.current_character.isalpha():
+        elif self.reader.state.current_character.isalpha() or self.reader.state.current_character=='_':
             s = s + self.reader.state.current_character
             self.reader.next()
             while(self.reader.state.current_character.isdigit() or

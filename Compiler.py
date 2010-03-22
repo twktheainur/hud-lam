@@ -19,25 +19,27 @@ class Compiler(object):
 
     def compile(self):
         if self.__pyc_exists():
-            print self.pyc.read(4) #Python Magic number
-            pyctime = self.pyc.read(4)
-            print len(pyctime)
-            pyctime = struct.unpack('<i', pyctime)
-            srctime = os.path.getmtime(self.name+".lam")
-            if(srctime<=pyctime[0]):
-                self.code = marshal.load(self.pyc)
-            else:
+            try:
+                self.pyc.read(4) #Python Magic number
+                pyctime = self.pyc.read(4)
+                pyctime = struct.unpack('<i', pyctime)
+                srctime = os.path.getmtime(self.name+".lam")
+                if(srctime<=pyctime[0]):
+                    self.code = marshal.load(self.pyc)
+                else:
+                    raise Exception()
+            except:
                 self.__generate_code_object()
-                self.__write_pyc()
+#                self.__write_pyc()
         else:
             self.__generate_code_object()
-            self.__write_pyc()
+#            self.__write_pyc()
         return self.code
 
     def __generate_code_object(self):
         self.ast = self.parser.generate_py_ast()
-        print ast.dump(self.ast,True,True)
-        self.code = compile(ast.fix_missing_locations((self.ast)),self.name+".py","exec")
+        print ast.dump(self.ast,True)
+        self.code = compile(((self.ast)),self.name+".lam","exec")
 
     def __write_pyc(self):
         pyc = open(self.name+".pyc","wb")
