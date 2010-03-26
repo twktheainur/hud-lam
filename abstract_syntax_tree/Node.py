@@ -28,7 +28,6 @@ class ModuleNode(Node):
         self.name= parser.mod_name()
         self.children = []
         self.main_entry=None
-        self.global_context={} 
     
     def python_ast(self):
         main = []
@@ -39,8 +38,6 @@ class ModuleNode(Node):
         return ast.Module([s.python_ast() for s in self.children]+
                           main,lineno=self.line,col_offset=self.column)
 
-    def module(self):
-        return types.ModuleType(str(self.name))
 
     def add_import(self,import_node):
         self.children.append(import_node)
@@ -51,13 +48,10 @@ class ModuleNode(Node):
     def add_entry(self, entry):
         self.main_entry = entry
 
-    def __register_global(self,name,item):
-        self.global_context.update({name:item})
 
 class ImportNode(Node):
     def __init__(self,parser,name):
         Node.__init__(self,parser)
-        self.python_mod=None
         self.name=name
         try:
             p = Parser.Parser(name+'.lam')
@@ -155,8 +149,15 @@ class ForIfNode(Node):
         self.instructions = instr_seq
 
     def python_ast(self):
-        return ast.While(test.python_ast(),self.instructions,[],lineno=self.line,col_offset=self.column)
-
+        ptest = self.test.python_ast()
+        pi = self.instructions.python_ast()
+#        ptest,pi,lineno=self.line,col_offset=self.column
+        last =  ast.While(lineno=self.line,col_offset=self.column)
+        last.test = ptest
+        last.body = pi
+        last.orelse = []
+        return last
+    
 class IfNode(Node):
     def __init__(self,parser,test,iftrue,orelse):
         Node.__init__(self,parser)
@@ -403,18 +404,22 @@ class ArrayAccessorNode(Node):
         self.mode = "load"
 
     def python_ast(self):
-#        print "Arrayyyyyyyyyyyyyyyyy"
-        acc_mode = ast.Load(lineno=self.line,col_offset=self.column)
+        sub = ast.Subscript(lineno=self.line,col_offset=self.column)
+        sub.value = self.child.python_ast()
+        sub.slice = ast.Index(self.index.python_ast())
+        sub.ctx =  ast.Load(lineno=self.line,col_offset=self.column)
         if self.mode == "store":
-            acc_mode = ast.Store(lineno=self.line,col_offset=self.column)
-        return ast.Subscript(self.child.python_ast(),ast.Index(self.index.python_ast(),acc_mode),lineno=self.line,col_offset=self.column)
+            sub.ctx = ast.Store(lineno=self.line,col_offset=self.column)
+        print "HA"
 
+        return sub
 
 class EntryNode(Node):
     def __init__(self,parser):
         Node.__init__(self,parser)
         
     def python_ast(self):
+        print self.instruction_sequence.python_ast()
         return ast.If(test=ast.Compare(left=ast.Name(id='__name__', ctx=ast.Load(),lineno=self.line,col_offset=self.column), ops=[ast.Eq(lineno=self.line,col_offset=self.column)],
                   comparators=[ast.Str(s='__main__',lineno=self.line,col_offset=self.column)],lineno=self.line,col_offset=self.column),
                   body=self.instruction_sequence.python_ast(), orelse=[],lineno=self.line,col_offset=self.column)

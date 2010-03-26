@@ -18,16 +18,13 @@ class CharacterState(object):
         self.current_character=c
         if c=='\n' or c=='\r':
             #Handling Windows line ends
-            index = self.reader.source_file.tell()
-            nc = self.reader.source_file.read(1)
-            if  nc!='\n' or nc !='\r':
-                self.reader.source_file.seek(index)
-            else:
-                self.file_index+=1
+            nc = self.reader.source_file.peek(1)
+            if  nc=='\n' or nc =='\r':
+                self.reader.source_file.read(1)
             self.column=0
             self.line+=1
         self.column +=1
-        self.file_index +=1
+        self.file_index = self.reader.source_file.tell()
 
     def revert(self):
         self.reader.state = self

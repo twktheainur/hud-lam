@@ -11,7 +11,6 @@ class LexemeFactory(object):
         for lexclass in self.classes:
             lexeme_obj = lexclass.match(str)
             if(lexeme_obj!=None):
-                #print "Match:",str
                 break
             lexeme_obj=None
         return lexeme_obj
