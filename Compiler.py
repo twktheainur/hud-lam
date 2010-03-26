@@ -30,15 +30,15 @@ class Compiler(object):
                     raise Exception()
             except:
                 self.__generate_code_object()
-#                self.__write_pyc()
+                self.__write_pyc()
         else:
             self.__generate_code_object()
-#            self.__write_pyc()
+            self.__write_pyc()
         return self.code
 
     def __generate_code_object(self):
         self.ast = self.parser.generate_py_ast()
-        print ast.dump(self.ast,True)
+#        print ast.dump(self.ast,True)
         self.code = compile(((self.ast)),self.name+".lam","exec")
 
     def __write_pyc(self):

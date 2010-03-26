@@ -186,7 +186,6 @@ class BinaryOperatorNode(Node):
         self.operator=operator
         self.left=left
         self.right=right
-        print self.left.__class__.__name__
         if self.left.__class__.__name__=="AccessRootNode":
             self.left.in_expr = True
         elif self.right.__class__.__name__=="AccessRootNode":
@@ -235,14 +234,36 @@ class AffectationNode(Node):
         return ast.Assign([self.affectee.python_ast()],self.value.python_ast(),lineno=self.line,col_offset=self.column)
 
 class TryNode(Node):
-    def __init__(self,parser,try_seq,ex_name,catch_seq):
+    def __init__(self,parser,try_seq):
         Node.__init__(self,parser)
         self.try_sequence = try_seq
-        self.exception_name = ex_name
-        self.catch_sequence = catch_seq
+        self.catches = {}
+
+    def add_catch(self,name,seq):
+        if name=="":
+            name = "#default#"
+        self.catches[name] = seq
 
     def python_ast(self):
-        return ast.TryExcept(self.try_sequence.python_ast(),[ast.ExceptHandler(ex_name,ast.Load())],None, self.catch_sequence.python_ast(),lineno=self.line,col_offset=self.column)
+        
+        te = ast.TryExcept(lineno=self.line,col_offset=self.column)
+        te.handlers = []
+        te.body= self.try_sequence.python_ast()
+        for k,v in self.catches.items():
+            if k=="#default#":
+                eh = ast.ExceptHandler(lineno=self.line,col_offset=self.column)
+                eh.type = None
+                eh.name = None
+                eh.body = v.python_ast()
+                te.handlers.append(eh)
+            else:
+                eh = ast.ExceptHandler(lineno=self.line,col_offset=self.column)
+                eh.type = ast.Name(k,ast.Load(),lineno=self.line,col_offset=self.column)
+                eh.name = None
+                eh.body = v.python_ast()
+                te.handlers.append(eh)
+        te.orelse = []
+        return te
 
 class EchoNode(Node):
     def __init__(self,parser):
@@ -410,8 +431,6 @@ class ArrayAccessorNode(Node):
         sub.ctx =  ast.Load(lineno=self.line,col_offset=self.column)
         if self.mode == "store":
             sub.ctx = ast.Store(lineno=self.line,col_offset=self.column)
-        print "HA"
-
         return sub
 
 class EntryNode(Node):
@@ -419,7 +438,6 @@ class EntryNode(Node):
         Node.__init__(self,parser)
         
     def python_ast(self):
-        print self.instruction_sequence.python_ast()
         return ast.If(test=ast.Compare(left=ast.Name(id='__name__', ctx=ast.Load(),lineno=self.line,col_offset=self.column), ops=[ast.Eq(lineno=self.line,col_offset=self.column)],
                   comparators=[ast.Str(s='__main__',lineno=self.line,col_offset=self.column)],lineno=self.line,col_offset=self.column),
                   body=self.instruction_sequence.python_ast(), orelse=[],lineno=self.line,col_offset=self.column)

@@ -144,7 +144,7 @@ class Parser(object):
             self.lexer.next()
         while (self.__lexeme_is(Name) or self.__lexeme_is(This) or\
         self.__lexeme_is(For) or self.__lexeme_is(If) or
-         self.__lexeme_is(Parent) or self.__lexeme_is(Echo) or self.__lexeme_is(Input)) and\
+         self.__lexeme_is(Parent) or self.__lexeme_is(Echo) or self.__lexeme_is(Try) or self.__lexeme_is(Input)) and\
          not self.__lexeme_is(Catch):
             node.add_instruction(self.__instruction())
             if(self.__lexeme_is(InstructionSeparator)):
@@ -156,7 +156,7 @@ class Parser(object):
         #             input_statement|affectation_statement
         node = None
         if self.__lexeme_is(Try):
-            node = self.__try__statement()
+            node = self.__try_statement()
         elif self.__lexeme_is(If):
             node = self.__if_statement(False)
         elif self.__lexeme_is(For):
@@ -291,20 +291,29 @@ class Parser(object):
         else:
             return AffectationNode(self,AccessRootNode(self,affectee,'store'),value)
 
-    def __try__statement(self):
+    def __try_statement(self):
         #try_statement: TRY BLOCKSTART instruction_sequence CATCH (ClassName) BLOCKSTART instruction_sequence BLOCKEND
         self.__ascertain_lexeme(Try)
         self.__ascertain_lexeme(BlockStart)
         try_seq = self.__instruction_sequence()
+        tn = TryNode(self,try_seq)
+        ex_name=""
         self.__ascertain_lexeme(Catch)
         if self.__lexeme_is(Name) and self.__name_is(ClassName):
             ex_name=self.__lexeme_string()
             self.lexer.next()
         self.__ascertain_lexeme(BlockStart)
-        
-        catch_seq = self.__instruction_sequence()
+        tn.add_catch(ex_name,self.__instruction_sequence())
+        while self.__lexeme_is(Catch):
+            ex_name=""
+            self.lexer.next()
+            if self.__lexeme_is(Name) and self.__name_is(ClassName):
+                ex_name=self.__lexeme_string()
+                self.lexer.next()
+            self.__ascertain_lexeme(BlockStart)
+            tn.add_catch(ex_name,self.__instruction_sequence())
         self.__ascertain_lexeme(BlockEnd)
-        return TryNode(self,try_seq,ex_name,catch_seq)
+        return tn
 
     def __expression(self):
         #expression: boolean_expression
